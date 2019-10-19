@@ -157,8 +157,6 @@
                             :file-list="fileList">
                         <el-button size="small" type="primary">点击上传</el-button>
                     </el-upload>
-
-
                 </el-form-item>
                 <el-form-item label="商品描述">
                     <el-input type="textarea" v-model="addForm.ext.description" auto-complete="off"></el-input>
@@ -175,6 +173,53 @@
                 <el-button type="primary" @click.native="addSubmit" :loading="addLoading">提交</el-button>
             </div>
         </el-dialog>
+
+
+        <!--显示属性维护-->
+        <el-dialog size="tiny" title="显示属性" v-model="viewPropertiesDialogVisible" :close-on-click-modal="false">
+
+            <el-form label-width="80px">
+                <el-form-item v-for="viewProperty in viewProperties" :label="viewProperty.specName">
+                    <el-input v-model="viewProperty.value" auto-complete="off"></el-input>
+                </el-form-item>
+            </el-form>
+
+            <div slot="footer" class="dialog-footer">
+                <el-button @click.native="viewPropertiesDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click.native="handleSaveViewProperties">提交</el-button>
+            </div>
+        </el-dialog>
+
+        <!--SKU属性维护-->
+        <el-dialog title="SKU属性" v-model="skuPropertiesDialogVisible" :close-on-click-modal="false">
+
+            <el-card class="box-card" v-for="(skuProperty,i) in skuProperties">
+                <div slot="header" class="clearfix">
+                    <span style="line-height: 36px;">{{skuProperty.specName}}</span>
+                </div>
+                <div v-for="index in skuProperty.options.length+1" class="text item">
+                    <el-row>
+                        <el-col :span="18">
+                            <el-input v-model="skuProperty.options[index-1]" auto-complete="off"></el-input>
+                        </el-col>
+                        <el-col :span="6">
+                            <el-button @click="removeProperty(i,index-1)">删除</el-button>
+                        </el-col>
+                    </el-row>
+                </div>
+            </el-card>
+
+            <el-table :data="skus" highlight-current-row style="width: 100%;">
+                <el-table-column v-for="(value,key) in skus[0]" :label="key" :prop="key">
+                </el-table-column>
+            </el-table>
+
+            <div slot="footer" class="dialog-footer">
+                <el-button @click.native="skuPropertiesDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click.native="handleSaveSkuProperties">提交</el-button>
+            </div>
+        </el-dialog>
+
     </section>
 </template>
 
@@ -186,14 +231,24 @@
     export default {
         data() {
             return {
-                fileList:[],
-                brands:[],
+                //显示属性
+                viewProperties: [],
+                //sku属性
+                skuProperties: [],
+                //sku
+                skus: [],
+                //显示属性维护的模态框
+                viewPropertiesDialogVisible: false,
+                skuPropertiesDialogVisible: false,
+
+                fileList: [],
+                brands: [],
                 defaultParams: {
                     label: 'name',
                     value: 'id',
                     children: 'children'
                 },
-                producttypes:[],
+                producttypes: [],
                 filters: {
                     keyword: ''
                 },
@@ -208,7 +263,7 @@
                 editLoading: false,
                 editFormRules: {
                     name: [
-                        { required: true, message: '请输入姓名', trigger: 'blur' }
+                        {required: true, message: '请输入姓名', trigger: 'blur'}
                     ]
                 },
                 //编辑界面数据
@@ -217,11 +272,11 @@
                     subName: '',
                     productTypeId: null,
                     brandId: null,
-                    medias:'',
-                    productTypes:[],
-                    ext:{
-                        description:'',
-                        richContent:''
+                    medias: '',
+                    productTypes: [],
+                    ext: {
+                        description: '',
+                        richContent: ''
                     }
                 },
 
@@ -229,10 +284,10 @@
                 addLoading: false,
                 addFormRules: {
                     name: [
-                        { required: true, message: '请输入标题', trigger: 'blur' }
+                        {required: true, message: '请输入标题', trigger: 'blur'}
                     ],
                     subName: [
-                        { required: true, message: '请输入副标题', trigger: 'blur' }
+                        {required: true, message: '请输入副标题', trigger: 'blur'}
                     ]
                 },
                 //新增界面数据
@@ -241,27 +296,33 @@
                     subName: '',
                     productTypeId: null,
                     brandId: null,
-                    medias:'',
-                    productTypes:[],
-                    ext:{
-                        description:'',
-                        richContent:''
+                    medias: '',
+                    productTypes: [],
+                    ext: {
+                        description: '',
+                        richContent: ''
                     }
                 }
 
             }
         },
         methods: {
+            //删除sku属性选项
+            removeProperty(index1, index2) {
+                //index1 第几个sku属性
+                //index2  属性的第几个选项
+                this.skuProperties[index1].options.splice(index2, 1);
+            },
             //文件上传成功后的钩子函数
-            handleSuccess(response, file, fileList){
-                let {success,message,restObj} = response;
-                if(success){
+            handleSuccess(response, file, fileList) {
+                let {success, message, restObj} = response;
+                if (success) {
                     this.addForm.logo = restObj;
                     this.$message({
                         message: '上传成功',
                         type: 'success'
                     });
-                }else{
+                } else {
                     this.$message({
                         message: message,
                         type: 'error'
@@ -269,19 +330,19 @@
                 }
                 this.fileList = fileList;
             },
-            getBrands(){
-                this.$http.get("/product/product/list")
-                    .then(res=>{
+            getBrands() {
+                this.$http.get("/product/brand/list")
+                    .then(res => {
                         this.brands = res.data;
                     })
             },
-            getTreeData(data){
+            getTreeData(data) {
                 // 循环遍历json数据
-                for(var i=0;i<data.length;i++){
-                    if(data[i].children.length<1){
+                for (var i = 0; i < data.length; i++) {
+                    if (data[i].children.length < 1) {
                         // children若为空数组，则将children设为undefined
-                        data[i].children=undefined;
-                    }else {
+                        data[i].children = undefined;
+                    } else {
                         // children若不为空数组，则继续 递归调用 本方法
                         this.getTreeData(data[i].children);
                     }
@@ -289,49 +350,137 @@
                 return data;
             },
             //下拉框加载商品类型
-            loadTypeTree(){
+            loadTypeTree() {
                 this.$http.get("/product/productType/loadTypeTree")
-                    .then(res=>{
+                    .then(res => {
                         console.debug(res);
-                        this.producttypes=this.getTreeData(res.data);
+                        this.producttypes = this.getTreeData(res.data);
                     })
             },
             //显示属性维护
-            handleViewProperties(){},
+            handleViewProperties() {
+
+                //只能选中一行数据
+                if (this.sels.length == 0) {
+                    this.$message({
+                        message: '请选中一行数据',
+                        type: 'warning'
+                    });
+                    return;
+                }
+                if (this.sels.length > 1) {
+                    this.$message({
+                        message: '只能选中一行数据',
+                        type: 'warning'
+                    });
+                    return;
+                }
+
+                let productId = this.sels[0].id;
+
+                //查询要维护商品的显示属性
+                this.$http.get("/product/product/viewProperties/" + productId)
+                    .then(res => {
+                        this.viewProperties = res.data;
+                    })
+                //打开模态框
+                this.viewPropertiesDialogVisible = true;
+            },
+            //显示属性保存
+            handleSaveViewProperties() {
+
+                let productId = this.sels[0].id;
+
+                this.$confirm('确认保存吗?', '提示', {
+                    type: 'warning'
+                }).then(() => {
+                    this.$http.post("/product/product/updateViewProperties?productId=" + productId, this.viewProperties)
+                        .then(res => {
+                            let {success, message, restObj} = res.data;
+                            if (success) {
+                                this.$message({
+                                    message: '保存成功!',
+                                    type: 'success'
+                                });
+                                this.viewPropertiesDialogVisible = false;
+                            } else {
+                                this.$message({
+                                    message: message,
+                                    type: 'error'
+                                });
+                            }
+                        })
+                }).catch(() => {
+
+                });
+            },
             //sku属性维护
-            handleSkuProperties(){},
+            handleSkuProperties() {
+
+                //只能选中一行数据
+                if (this.sels.length == 0) {
+                    this.$message({
+                        message: '请选中一行数据',
+                        type: 'warning'
+                    });
+                    return;
+                }
+                if (this.sels.length > 1) {
+                    this.$message({
+                        message: '只能选中一行数据',
+                        type: 'warning'
+                    });
+                    return;
+                }
+
+                let productId = this.sels[0].id;
+                //查询要维护商品的sku属性
+                this.$http.get("/product/product/skuProperties/" + productId)
+                    .then(res => {
+                        this.skuProperties = res.data;
+                    })
+
+                //打开模态框
+                this.skuPropertiesDialogVisible = true;
+            },
+            //sku属性保存
+            handleSaveSkuProperties() {
+
+            },
             //上架
-            handleOnSale(){},
+            handleOnSale() {
+            },
             //下架
-            handleOffSale(){},
+            handleOffSale() {
+            },
             //格式化时间
-            formatOnSaleTime(row, column){
+            formatOnSaleTime(row, column) {
                 return this.formatTime(row.onSaleTime)
             },
-            formatOffSaleTime(row, column){
+            formatOffSaleTime(row, column) {
                 return this.formatTime(row.offSaleTime)
             },
-            formatTime(time){
-                if(!time){
+            formatTime(time) {
+                if (!time) {
                     return null;
                 }
                 let date = new Date(time);
                 let year = date.getFullYear();
-                let month = date.getMonth()+1;
+                let month = date.getMonth() + 1;
                 let day = date.getDate();//获取一个月中的第几天
                 let hour = date.getHours();
                 let minute = date.getMinutes();
                 let second = date.getSeconds();
-                let timeStr = year+"-"+this.formatTimeNum(month)+"-"+this.formatTimeNum(day)
-                    +" "+this.formatTimeNum(hour)+":"+this.formatTimeNum(minute)+":"+this.formatTimeNum(second);
+                let timeStr = year + "-" + this.formatTimeNum(month) + "-" + this.formatTimeNum(day)
+                    + " " + this.formatTimeNum(hour) + ":" + this.formatTimeNum(minute) + ":" + this.formatTimeNum(second);
 
                 return timeStr;
             },
-            formatTimeNum(num){
-                if(num>=10){
+            formatTimeNum(num) {
+                if (num >= 10) {
                     return num;
                 }
-                return "0"+num;
+                return "0" + num;
             },
             //性别显示转换
             formatSex: function (row, column) {
@@ -350,10 +499,10 @@
                 };
                 this.listLoading = true;
                 //NProgress.start();
-                this.$http.post("/product/product/json",para)
-                    .then(res=>{
+                this.$http.post("/product/product/json", para)
+                    .then(res => {
                         this.listLoading = false;
-                        let {total,rows} = res.data;
+                        let {total, rows} = res.data;
                         this.total = total;
                         this.products = rows;
                     })
@@ -366,22 +515,22 @@
                     this.listLoading = true;
 
                     this.$http.delete("/product/product/delete/" + row.id)
-                    .then(res=>{
-                        this.listLoading = false;
-                        let {success,message,restObj}=res.data;
-                        if (success){
-                            this.$message({
-                                message: '删除成功',
-                                type: 'success'
-                            });
-                            this.getProducts();
-                        }else {
-                            this.$message({
-                                message: 'message',
-                                type: 'error'
-                            });
-                        }
-                    });
+                        .then(res => {
+                            this.listLoading = false;
+                            let {success, message, restObj} = res.data;
+                            if (success) {
+                                this.$message({
+                                    message: '删除成功',
+                                    type: 'success'
+                                });
+                                this.getProducts();
+                            } else {
+                                this.$message({
+                                    message: 'message',
+                                    type: 'error'
+                                });
+                            }
+                        });
                 }).catch(() => {
 
                 });
@@ -399,11 +548,11 @@
                     subName: '',
                     productTypeId: null,
                     brandId: null,
-                    medias:'',
-                    productTypes:[],
-                    ext:{
-                        description:'',
-                        richContent:''
+                    medias: '',
+                    productTypes: [],
+                    ext: {
+                        description: '',
+                        richContent: ''
                     }
                 };
             },
@@ -415,12 +564,12 @@
                             this.editLoading = true;
                             //NProgress.start();
                             let para = Object.assign({}, this.editForm);
-                            this.$http.post("/product/brand/add",para)
-                                .then(res=>{
+                            this.$http.post("/product/brand/add", para)
+                                .then(res => {
                                     this.addLoading = false;
-                                    let {success,message}=res.data;
+                                    let {success, message} = res.data;
                                     //NProgress.done();
-                                    if (success){
+                                    if (success) {
                                         this.$message({
                                             message: 'message',
                                             type: 'success'
@@ -428,7 +577,7 @@
                                         this.$refs['editForm'].resetFields();
                                         this.editFormVisible = false;
                                         this.getbrands();
-                                    }else {
+                                    } else {
                                         this.$message({
                                             message: 'message',
                                             type: 'error'
@@ -448,15 +597,15 @@
                             //NProgress.start();
                             let para = Object.assign({}, this.addForm);
                             //参数的封装
-                            para.productTypeId = this.addForm.productTypes[this.addForm.productTypes.length-1]  //[1,2,3]
+                            para.productTypeId = this.addForm.productTypes[this.addForm.productTypes.length - 1]  //[1,2,3]
                             //从fileList中获取文件路径用，拼接给medias赋值
-                            para.medias = this.fileList.map(file=>file.response.restObj).join(",");
+                            para.medias = this.fileList.map(file => file.response.restObj).join(",");
 
-                            this.$http.post("/product/product/add",para)
-                                .then(res=>{
+                            this.$http.post("/product/product/add", para)
+                                .then(res => {
                                     this.addLoading = false;
-                                    let {success,message,restObj} = res.data;
-                                    if(success){
+                                    let {success, message, restObj} = res.data;
+                                    if (success) {
                                         this.$message({
                                             message: '提交成功',
                                             type: 'success'
@@ -464,7 +613,7 @@
                                         this.$refs['addForm'].resetFields();
                                         this.addFormVisible = false;
                                         this.getProducts();
-                                    }else{
+                                    } else {
                                         this.$message({
                                             message: message,
                                             type: 'error'
@@ -485,35 +634,59 @@
                     type: 'warning'
                 }).then(() => {
                     this.listLoading = true;
-                    this.$http.delete("/product/product/deleteBatch?ids="+ids)
-                        .then(res=>{
+                    this.$http.delete("/product/product/deleteBatch?ids=" + ids)
+                        .then(res => {
                             this.listLoading = false;
-                            let {success,message,resultObj}=res.data;
-                            if (success){
+                            let {success, message, resultObj} = res.data;
+                            if (success) {
                                 this.$message({
                                     message: '删除成功',
                                     type: 'success'
                                 });
                                 this.getbrands();
-                            }else {
+                            } else {
                                 this.$message({
                                     message: 'message',
                                     type: 'error'
                                 });
                             }
                         })
-                }).catch(() => {
-
-                });
+                }).catch(() => {});
             }
         },
-        mounted() {
+        mounted(){
             this.getProducts();
             this.loadTypeTree();
             this.getBrands();
+        },
+        watch:{
+            skuProperties:{
+                handler(val,oldval){
+                    //过滤掉options为空数组的sku属性
+                    let skuPropertiesArr = this.skuProperties.filter(e=>e.options.length>0);
+                    let result = skuPropertiesArr.reduce((pre,cur,currentIndex)=>{
+                        let temp = [];
+                        pre.forEach(e1=>{
+                            cur.options.forEach((e2,index)=>{
+                                let obj = Object.assign({},e1);
+                                obj[cur.specName] = e2;
+
+                                //判断是否是最后一次reduce
+                                if(currentIndex==skuPropertiesArr.length-1){
+                                    obj.price = 0;
+                                    obj.store = 0;
+                                }
+                                temp.push(obj);
+                            })
+                        })
+                        return temp;
+                    },[{}])
+                    this.skus = result;
+                },
+                deep:true
+            }
         }
     }
-
 </script>
 
 <style scoped>
