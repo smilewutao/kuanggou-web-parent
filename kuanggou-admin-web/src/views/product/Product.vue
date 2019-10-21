@@ -210,8 +210,16 @@
             </el-card>
 
             <el-table :data="skus" highlight-current-row style="width: 100%;">
-                <el-table-column v-for="(value,key) in skus[0]" :label="key" :prop="key">
+                <!--sku的属性-->
+                <el-table-column v-if="key!='price'&&key!='store'&&key!='indexs'" v-for="(value,key) in skus[0]" :label="key" :prop="key">
                 </el-table-column>
+                <!--price和store-->
+                <el-table-column v-if="(key=='price'||key=='store')&&key!='indexs'" v-for="(value,key) in skus[0]" :label="key" :prop="key">
+                    <template scope="scope">
+                        <el-input v-model="scope.row[key]" auto-complete="false"/>
+                    </template>
+                </el-table-column>
+
             </el-table>
 
             <div slot="footer" class="dialog-footer">
@@ -446,12 +454,88 @@
             //sku属性保存
             handleSaveSkuProperties() {
 
+                let productId = this.sels[0].id;
+
+                let param = {};
+
+                param.skuProperties = this.skuProperties;
+                param.skus = this.skus;
+
+                this.$confirm('确认保存吗?', '提示', {
+                    type: 'warning'
+                }).then(() => {
+                    this.$http.post("/product/product/updateSkuProperties?productId=" + productId, param)
+                        .then(res => {
+                            let {success, message, restObj} = res.data;
+                            if (success) {
+                                this.$message({
+                                    message: '保存成功!',
+                                    type: 'success'
+                                });
+                                this.skuPropertiesDialogVisible = false;
+                            } else {
+                                this.$message({
+                                    message: message,
+                                    type: 'error'
+                                });
+                            }
+                        })
+                }).catch(() => {
+
+                });
             },
             //上架
             handleOnSale() {
+
+                var ids = this.sels.map(item => item.id).toString();
+                this.$confirm('确认上架选中吗？', '提示', {
+                    type: 'warning'
+                }).then(() => {
+                    this.listLoading = true;
+                    this.$http.get("/product/product/onSale?ids=" + ids)
+                        .then(res => {
+                            this.listLoading = false;
+                            let {success, message, resultObj} = res.data;
+                            if (success) {
+                                this.$message({
+                                    message: '上架成功',
+                                    type: 'success'
+                                });
+                                this.getProducts();
+                            } else {
+                                this.$message({
+                                    message: message,
+                                    type: 'error'
+                                });
+                            }
+                        })
+                }).catch(() => {});
             },
             //下架
             handleOffSale() {
+                var ids = this.sels.map(item => item.id).toString();
+                this.$confirm('确认下架选中吗？', '提示', {
+                    type: 'warning'
+                }).then(() => {
+                    this.listLoading = true;
+                    this.$http.get("/product/product/offSale?ids=" + ids)
+                        .then(res => {
+                            this.listLoading = false;
+                            let {success, message, resultObj} = res.data;
+                            if (success) {
+                                this.$message({
+                                    message: '下架成功',
+                                    type: 'success'
+                                });
+                                this.getProducts();
+                            } else {
+                                this.$message({
+                                    message: message,
+                                    type: 'error'
+                                });
+                            }
+                        })
+                }).catch(() => {});
             },
             //格式化时间
             formatOnSaleTime(row, column) {
@@ -643,7 +727,7 @@
                                     message: '删除成功',
                                     type: 'success'
                                 });
-                                this.getbrands();
+                                this.getProducts();
                             } else {
                                 this.$message({
                                     message: 'message',
@@ -671,11 +755,19 @@
                                 let obj = Object.assign({},e1);
                                 obj[cur.specName] = e2;
 
+                                //获取上一次的indexs，后面拼接这一次的索引
+                                let lastIndexs = obj.indexs;
+                                if(!lastIndexs) lastIndexs = "";
+
                                 //判断是否是最后一次reduce
                                 if(currentIndex==skuPropertiesArr.length-1){
                                     obj.price = 0;
                                     obj.store = 0;
+                                    lastIndexs = lastIndexs+index;
+                                }else{
+                                    lastIndexs = lastIndexs+index+"_";
                                 }
+                                obj.indexs = lastIndexs;
                                 temp.push(obj);
                             })
                         })
