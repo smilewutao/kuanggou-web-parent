@@ -486,6 +486,20 @@
             },
             //上架
             handleOnSale() {
+                let offSale = '';
+                for(let index = 0;index <this.sels.length;index++){
+                    if (this.sels[index].state==0){
+                        offSale += this.sels[index].name + ",";
+                    }
+                }
+                let offSales = offSale.substring(0,offSale.length-1);
+                if (offSales != ''){
+                    this.$message({
+                        message: '该商品以上架，不能重复上架！',
+                        type: 'warning'
+                    });
+                    return;
+                }
 
                 var ids = this.sels.map(item => item.id).toString();
                 this.$confirm('确认上架选中吗？', '提示', {
@@ -513,6 +527,20 @@
             },
             //下架
             handleOffSale() {
+                let offSale = '';
+                for(let index = 0;index <this.sels.length;index++){
+                    if (this.sels[index].state==0){
+                        offSale += this.sels[index].name + ",";
+                    }
+                }
+                let offSales = offSale.substring(0,offSale.length-1);
+                if (offSales != ''){
+                    this.$message({
+                        message: '该商品以下架，不能重复下架！',
+                        type: 'warning'
+                    });
+                    return;
+                }
                 var ids = this.sels.map(item => item.id).toString();
                 this.$confirm('确认下架选中吗？', '提示', {
                     type: 'warning'
@@ -593,6 +621,13 @@
             },
             //删除
             handleDel: function (index, row) {
+                if (row.state==1){
+                    this.$message({
+                        message: '该商品未下架，不能删除！',
+                        type: 'success'
+                    });
+                    return;
+                }
                 this.$confirm('确认删除该记录吗?', '提示', {
                     type: 'warning'
                 }).then(() => {
@@ -642,6 +677,13 @@
             },
             //编辑
             editSubmit: function () {
+                if (row.state==1){
+                    this.$message({
+                        message: '该商品未下架，不能编辑！',
+                        type: 'success'
+                    });
+                    return;
+                }
                 this.$refs.editForm.validate((valid) => {
                     if (valid) {
                         this.$confirm('确认提交吗？', '提示', {}).then(() => {
@@ -774,6 +816,15 @@
                         return temp;
                     },[{}])
                     this.skus = result;
+                    //查询价格
+                    this.$http.get("/product/sku/getPrices/" + this.sels[0].id)
+                        .then(res=>{
+                        let s = res.data;
+                        for (let  i=0 ;i<s.length;i++){
+                            this.skus[i].price = s[i].price;
+                            this.skus[i].store = s[i].availableStock;
+                        }
+                    })
                 },
                 deep:true
             }
